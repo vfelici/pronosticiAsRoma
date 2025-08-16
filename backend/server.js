@@ -110,16 +110,33 @@ app.post("/matches/:id/result", auth, async (req, res) => {
     res.json({ message: "Risultato ufficiale inserito, punteggi aggiornati" });
 });
 
-// Classifica
-app.get("/leaderboard", auth, async (req, res) => {
-    const board = await pool.query(`
-        SELECT u.username, COALESCE(SUM(p.points),0) as total_points
-        FROM users u
-        LEFT JOIN predictions p ON u.id = p.user_id
-        GROUP BY u.username
-        ORDER BY total_points DESC
+// GET /leaderboard
+app.get('/leaderboard', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        u.id as user_id,
+        u.username,
+        COALESCE(SUM(
+          CASE 
+            WHEN p.home_score = m.home_score 
+             AND p.away_score = m.away_score 
+             AND m.finished = true
+            THEN 5 ELSE 0 
+          END
+        ),0) as points
+      FROM users u
+      LEFT JOIN predictions p ON u.id = p.user_id
+      LEFT JOIN matches m ON p.match_id = m.id
+      GROUP BY u.id, u.username
+      ORDER BY points DESC
     `);
-    res.json(board.rows);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Errore calcolo classifica' });
+  }
 });
 
 // Mostra pronostici (tutti visibili se partita finita)
@@ -148,21 +165,40 @@ app.get("/matches/:id/predictions", auth, async (req, res) => {
 
 app.listen(3000, () => console.log("Server avviato"));
 
-// Inserisci nuova partita (solo admin)
-app.post("/matches", auth, async (req, res) => {
-    if (!req.user.is_admin) {
-        return res.status(403).json({ error: "Non autorizzato" });
-    }
-    const { date, home_team, away_team } = req.body;
+// POST /admin/matches
+app.post('/admin/matches', verifyAdmin, async (req, res) => {
+  const { home_team, away_team, date } = req.body;
 
-    try {
-        const result = await pool.query(
-            "INSERT INTO matches (date, home_team, away_team) VALUES ($1, $2, $3) RETURNING *",
-            [date, home_team, away_team]
-        );
-        res.json({ message: "Partita creata", match: result.rows[0] });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Errore creazione partita" });
-    }
+  try {
+    const result = await pool.query(
+      `INSERT INTO matches (home_team, away_team, date) 
+       VALUES ($1, $2, $3) RETURNING *`,
+      [home_team, away_team, date]
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Errore inserimento match' });
+  }
+});
+
+// PUT /admin/matches/:id/result
+app.put('/admin/matches/:id/result', verifyAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { home_score, away_score } = req.body;
+
+  try {
+    const result = await pool.query(
+      `UPDATE matches 
+       SET home_score = $1, away_score = $2, finished = true 
+       WHERE id = $3 RETURNING *`,
+      [home_score, away_score, id]
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Errore aggiornamento risultato' });
+  }
 });
