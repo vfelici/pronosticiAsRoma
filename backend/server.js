@@ -147,3 +147,22 @@ app.get("/matches/:id/predictions", auth, async (req, res) => {
 });
 
 app.listen(3000, () => console.log("Server avviato"));
+
+// Crea una nuova partita (solo admin)
+app.post("/matches", auth, async (req, res) => {
+    if (!req.user.is_admin) {
+        return res.status(403).json({ error: "Non autorizzato" });
+    }
+    const { date, home_team, away_team } = req.body;
+
+    try {
+        const result = await pool.query(
+            "INSERT INTO matches (date, home_team, away_team) VALUES ($1, $2, $3) RETURNING *",
+            [date, home_team, away_team]
+        );
+        res.json({ message: "Partita creata", match: result.rows[0] });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Errore creazione partita" });
+    }
+});
