@@ -148,7 +148,7 @@ app.get("/matches/:id/predictions", auth, async (req, res) => {
 
 app.listen(3000, () => console.log("Server avviato"));
 
-// Crea una nuova partita (solo admin)
+// Inserisci nuova partita (solo admin)
 app.post("/matches", auth, async (req, res) => {
     if (!req.user.is_admin) {
         return res.status(403).json({ error: "Non autorizzato" });
