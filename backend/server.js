@@ -50,7 +50,7 @@ app.post("/register", async (req, res) => {
 });
 
 // Login
-app.post("/login", async (req, res) => {
+/*app.post("/login", async (req, res) => {
     console.log(">>> Richiesta LOGIN ricevuta", req.body); // 👈 debug
     const { username, password } = req.body;
     const result = await pool.query("SELECT * FROM users WHERE username=$1", [username]);
@@ -64,6 +64,40 @@ app.post("/login", async (req, res) => {
         is_admin: user.is_admin
     }, JWT_SECRET);
     res.json({ token });
+});*/
+
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body;
+
+  // recupera utente da DB
+  const result = await pool.query(
+    "SELECT * FROM users WHERE username = $1",
+    [username]
+  );
+  const user = result.rows[0];
+
+  if (!user) {
+    return res.status(400).json({ error: "Utente non trovato" });
+  }
+
+  // verifica password...
+  const valid = await bcrypt.compare(password, user.password_hash);
+  if (!valid) {
+    return res.status(401).json({ error: "Password errata" });
+  }
+
+  // qui setta anche il campo is_admin (esempio: true per un username o colonna DB)
+  const token = jwt.sign(
+    {
+      id: user.id,
+      username: user.username,
+      is_admin: user.is_admin === true  // importante specificare
+    },
+    process.env.JWT_SECRET || "fallback_secret", // 👈 fallback se env mancante
+    { expiresIn: "1d" }
+  );
+
+  res.json({ token });
 });
 
 // Inserisci pronostico
