@@ -5,6 +5,11 @@ import jwt from "jsonwebtoken";
 import { Pool } from "pg";
 import dotenv from "dotenv";
 import cors from "cors";
+import { verifyAdmin } from "./middleware/auth.js"; // <-- aggiungi questo
+
+const app = express();
+app.use(cors());
+app.use(express.json());
 
 dotenv.config();
 const app = express();
