@@ -8,11 +8,7 @@ import cors from "cors";
 
 dotenv.config();
 const app = express();
-app.use(cors({
-  origin: "https://gilded-jelly-096e79.netlify.app",  // 👈 il tuo sito frontend
-  methods: ["GET","POST","PUT","DELETE","OPTIONS"],
-  allowedHeaders: ["Content-Type","Authorization"]
-}));
+app.use(cors({ origin: "*" }));
 app.use(bodyParser.json());
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
