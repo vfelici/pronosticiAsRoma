@@ -8,7 +8,6 @@ import cors from "cors";
 import { verifyAdmin } from "./middleware/auth.js"; // <-- aggiungi questo
 
 const app = express();
-app.use(cors());
 app.use(express.json());
 
 dotenv.config();
