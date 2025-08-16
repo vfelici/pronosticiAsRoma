@@ -13,7 +13,7 @@ app.use(cors({
   methods: ["GET","POST","PUT","DELETE","OPTIONS"],
   allowedHeaders: ["Content-Type","Authorization"]
 }));
-app.use(cors({ origin: "*" }));
+app.options("*", cors()); // 👈 aggiunto per preflight
 app.use(bodyParser.json());
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -48,6 +48,7 @@ app.post("/register", async (req, res) => {
 
 // Login
 app.post("/login", async (req, res) => {
+    console.log(">>> Richiesta LOGIN ricevuta", req.body); // 👈 debug
     const { username, password } = req.body;
     const result = await pool.query("SELECT * FROM users WHERE username=$1", [username]);
     const user = result.rows[0];
