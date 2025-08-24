@@ -239,3 +239,14 @@ app.put('/admin/matches/:id/result', verifyAdmin, async (req, res) => {
     res.status(500).json({ error: 'Errore aggiornamento risultato' });
   }
 });
+
+// GET /matches → restituisce tutte le partite
+app.get("/matches", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM matches ORDER BY date ASC");
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Errore nel recupero partite" });
+  }
+});
