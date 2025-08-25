@@ -93,14 +93,6 @@ app.post("/matches/:id/predictions", auth, async (req, res) => {
     if (!match.rows.length) return res.status(404).json({ error: "Partita non trovata" });
     if (match.rows[0].finished) return res.status(400).json({ error: "Partita già terminata" });
 
-    const existing = await pool.query(
-        "SELECT * FROM predictions WHERE match_id=$1 AND user_id=$2",
-        [id, req.user.id]
-    );
-    if (existing.rows.length > 0) {
-        return res.status(400).json({ error: "Pronostico già inserito" });
-    }
-
     await pool.query(`
       INSERT INTO predictions (match_id, user_id, home_score, away_score, scorer)
       VALUES ($1, $2, $3, $4, $5)
