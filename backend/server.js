@@ -254,10 +254,10 @@ app.get("/matches/upcoming", async (req, res) => {
 
 // GET /predictions/:match_id
 app.get("/predictions/:match_id", auth, async (req, res) => {
-  const userId = req.user?.id; // se usi autenticazione JWT con req.user
+  const userId = req.user.id; // se usi autenticazione JWT con req.user
   const { match_id } = req.params;
 
-  try {
+  /*try {
     // recupera la partita
     const matchRes = await pool.query("SELECT * FROM matches WHERE id = $1", [match_id]);
     const match = matchRes.rows[0];
@@ -284,5 +284,26 @@ app.get("/predictions/:match_id", auth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Errore recupero pronostici" });
-  }
+  }*/
+
+  const match = await pool.query("SELECT * FROM matches WHERE id=$1", [match_id]);
+    if (!match.rows.length) return res.status(404).json({ error: "Partita non trovata" });
+
+    const finished = match.rows[0].finished;
+    if (finished) {
+        const preds = await pool.query(`
+            SELECT u.username, p.home_score, p.away_score, p.scorer, p.points
+            FROM predictions p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.match_id=$1
+        `, [match_id]);
+        res.json(preds.rows);
+    } else {
+        const pred = await pool.query(`
+            SELECT home_score, away_score, scorer
+            FROM predictions
+            WHERE match_id=$1 AND user_id=$2
+        `, [match_id, req.user.id]);
+        res.json(pred.rows);
+    }
 });
