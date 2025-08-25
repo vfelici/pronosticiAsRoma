@@ -244,7 +244,12 @@ app.put('/admin/matches/:id/result', verifyAdmin, async (req, res) => {
 // GET /matches → restituisce tutte le partite
 app.get("/matches", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM matches ORDER BY date ASC");
+    const result = await pool.query(`SELECT m.*, COALESCE(string_agg(s.name, ', ' ORDER BY s.name), '') as scorers_names
+    FROM matches m
+      LEFT JOIN match_scorers ms ON ms.match_id = m.id
+      LEFT JOIN scorers s ON s.id = ms.scorer_id
+    GROUP BY m.id
+    ORDER BY m.date ASC`);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
