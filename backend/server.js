@@ -94,22 +94,26 @@ app.post("/login", async (req, res) => {
 
 // Inserisci pronostico
 app.post("/matches/:id/predictions", auth, async (req, res) => {
-    const { id } = req.params;
-    const { home_score, away_score, scorer } = req.body;
+  const { id } = req.params;
+  const { home_score, away_score, scorer_id } = req.body;
+  const userId = req.user.id;
 
-    const match = await pool.query("SELECT * FROM matches WHERE id=$1", [id]);
-    if (!match.rows.length) return res.status(404).json({ error: "Partita non trovata" });
-    if (match.rows[0].finished) return res.status(400).json({ error: "Partita già terminata" });
+  // controlla che scorer esista
+  const scorerCheck = await pool.query("SELECT * FROM scorers WHERE id=$1", [scorer_id]);
+  if (!scorerCheck.rows.length) {
+    return res.status(400).json({ error: "Marcatore non valido" });
+  }
 
-    await pool.query(`
-      INSERT INTO predictions (match_id, user_id, home_score, away_score, scorer)
-      VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT (match_id, user_id)
-      DO UPDATE SET home_score = EXCLUDED.home_score,
-                    away_score = EXCLUDED.away_score,
-                    scorer = EXCLUDED.scorer
-    `, [id, req.user.id, home_score, away_score, scorer]);
-    res.json({ message: "Pronostico salvato" });
+  await pool.query(`
+    INSERT INTO predictions (match_id, user_id, home_score, away_score, scorer_id)
+    VALUES ($1, $2, $3, $4, $5)
+    ON CONFLICT (match_id, user_id)
+    DO UPDATE SET home_score=EXCLUDED.home_score,
+                  away_score=EXCLUDED.away_score,
+                  scorer_id=EXCLUDED.scorer_id
+  `, [id, userId, home_score, away_score, scorer_id]);
+
+  res.json({ message: "Pronostico salvato" });
 });
 
 // Inserimento risultato ufficiale (solo admin)
@@ -142,17 +146,24 @@ app.get('/leaderboard', async (req, res) => {
       SELECT 
         u.id as user_id,
         u.username,
-        COALESCE(SUM(
+        SUM(
           CASE 
-            WHEN p.home_score = m.home_score 
-             AND p.away_score = m.away_score 
-             AND m.finished = true
-            THEN 5 ELSE 0 
+            WHEN p.home_score = m.home_score AND p.away_score = m.away_score AND m.finished
+              THEN 5 ELSE 0 
           END
-        ),0) as points
+        ) 
+        + 
+        SUM(
+          CASE 
+            WHEN ms.scorer_id = p.scorer_id AND m.finished
+              THEN s.points ELSE 0
+          END
+        ) as points
       FROM users u
       LEFT JOIN predictions p ON u.id = p.user_id
-      LEFT JOIN matches m ON p.match_id = m.id
+      LEFT JOIN matches m ON m.id = p.match_id
+      LEFT JOIN match_scorers ms ON ms.match_id = m.id
+      LEFT JOIN scorers s ON s.id = p.scorer_id
       GROUP BY u.id, u.username
       ORDER BY points DESC
     `);
@@ -286,24 +297,26 @@ app.get("/predictions/:match_id", auth, async (req, res) => {
     res.status(500).json({ error: "Errore recupero pronostici" });
   }
 
-  /*const match = await pool.query("SELECT * FROM matches WHERE id=$1", [match_id]);
-    if (!match.rows.length) return res.status(404).json({ error: "Partita non trovata" });
+  // POST /admin/matches/:id/scorers
+app.post("/admin/matches/:id/scorers", verifyAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { scorers } = req.body; // array di scorer_id
 
-    const finished = match.rows[0].finished;
-    if (finished) {
-        const preds = await pool.query(`
-            SELECT u.username, p.home_score, p.away_score, p.scorer, p.points
-            FROM predictions p
-            JOIN users u ON p.user_id = u.id
-            WHERE p.match_id=$1
-        `, [match_id]);
-        res.json(preds.rows);
-    } else {
-        const pred = await pool.query(`
-            SELECT home_score, away_score, scorer
-            FROM predictions
-            WHERE match_id=$1 AND user_id=$2
-        `, [match_id, req.user.id]);
-        res.json(pred.rows);
-    }*/
+  try {
+    // pulisci eventuali vecchi marcatori → reinserisci
+    await pool.query("DELETE FROM match_scorers WHERE match_id=$1", [id]);
+
+    for (const scorer_id of scorers) {
+      await pool.query(
+        "INSERT INTO match_scorers (match_id, scorer_id) VALUES ($1, $2)",
+        [id, scorer_id]
+      );
+    }
+
+    res.json({ message: "Marcatori aggiornati" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Errore assegnazione marcatori" });
+  }
+});
 });
