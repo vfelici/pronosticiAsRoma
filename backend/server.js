@@ -253,7 +253,7 @@ app.get("/matches/upcoming", async (req, res) => {
 });
 
 // GET /predictions/:match_id
-app.get("/predictions/:match_id", async (req, res) => {
+app.get("/predictions/:match_id", auth, async (req, res) => {
   const userId = req.user?.id; // se usi autenticazione JWT con req.user
   const { match_id } = req.params;
 
