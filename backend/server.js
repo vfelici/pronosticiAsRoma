@@ -50,22 +50,6 @@ app.post("/register", async (req, res) => {
 });
 
 // Login
-/*app.post("/login", async (req, res) => {
-    console.log(">>> Richiesta LOGIN ricevuta", req.body); // 👈 debug
-    const { username, password } = req.body;
-    const result = await pool.query("SELECT * FROM users WHERE username=$1", [username]);
-    const user = result.rows[0];
-    if (!user) return res.status(401).json({ error: "Credenziali errate" });
-    const match = await bcrypt.compare(password, user.password_hash);
-    if (!match) return res.status(401).json({ error: "Credenziali errate" });
-    const token = jwt.sign({
-        id: user.id,
-        username: user.username,
-        is_admin: user.is_admin
-    }, JWT_SECRET);
-    res.json({ token });
-});*/
-
 app.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
@@ -117,10 +101,14 @@ app.post("/matches/:id/predictions", auth, async (req, res) => {
         return res.status(400).json({ error: "Pronostico già inserito" });
     }
 
-    await pool.query(
-        "INSERT INTO predictions (match_id, user_id, home_score, away_score, scorer) VALUES ($1,$2,$3,$4,$5)",
-        [id, req.user.id, home_score, away_score, scorer]
-    );
+    await pool.query(`
+      INSERT INTO predictions (match_id, user_id, home_score, away_score, scorer)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (match_id, user_id)
+      DO UPDATE SET home_score = EXCLUDED.home_score,
+                    away_score = EXCLUDED.away_score,
+                    scorer = EXCLUDED.scorer
+    `, [id, req.user.id, home_score, away_score, scorer]);
     res.json({ message: "Pronostico salvato" });
 });
 
