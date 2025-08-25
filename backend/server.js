@@ -86,7 +86,7 @@ app.post("/login", async (req, res) => {
       is_admin: user.is_admin === true  // importante specificare
     },
     process.env.JWT_SECRET || "fallback_secret", // 👈 fallback se env mancante
-    { expiresIn: "1d" }
+    { expiresIn: "365d" }
   );
 
   res.json({ token });
