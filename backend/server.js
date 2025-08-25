@@ -183,17 +183,19 @@ app.get("/matches/:id/predictions", auth, async (req, res) => {
     const finished = match.rows[0].finished;
     if (finished) {
         const preds = await pool.query(`
-            SELECT u.username, p.home_score, p.away_score, p.scorer, p.points
+            SELECT u.username, p.home_score, p.away_score, s.name as scorer, p.points
             FROM predictions p
             JOIN users u ON p.user_id = u.id
+            JOIN scorers s ON p.scorer_id = s.id
             WHERE p.match_id=$1
         `, [req.params.id]);
         res.json(preds.rows);
     } else {
         const pred = await pool.query(`
-            SELECT home_score, away_score, scorer
-            FROM predictions
-            WHERE match_id=$1 AND user_id=$2
+            SELECT p.home_score, p.away_score, s.name as scorer
+            FROM predictions p
+            JOIN scorers s ON p.scorer_id = s.id
+            WHERE p.match_id=$1 AND p.user_id=$2
         `, [req.params.id, req.user.id]);
         res.json(pred.rows);
     }
