@@ -296,8 +296,23 @@ app.get("/predictions/:match_id", auth, async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Errore recupero pronostici" });
   }
+});
 
-  // POST /admin/matches/:id/scorers
+// Lista dei marcatori disponibili
+app.get("/scorers", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT id, name, points FROM scorers ORDER BY name ASC"
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Errore caricamento scorers:", err);
+    res.status(500).json({ error: "Errore nel recupero marcatori" });
+  }
+});
+
+
+// POST /admin/matches/:id/scorers
 app.post("/admin/matches/:id/scorers", verifyAdmin, async (req, res) => {
   const { id } = req.params;
   const { scorers } = req.body; // array di scorer_id
@@ -318,18 +333,4 @@ app.post("/admin/matches/:id/scorers", verifyAdmin, async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Errore assegnazione marcatori" });
   }
-});
-
-  // Lista dei marcatori disponibili
-app.get("/scorers", async (req, res) => {
-  try {
-    const result = await pool.query(
-      "SELECT id, name, points FROM scorers ORDER BY name ASC"
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error("Errore caricamento scorers:", err);
-    res.status(500).json({ error: "Errore nel recupero marcatori" });
-  }
-});
 });
