@@ -250,3 +250,16 @@ app.get("/matches", async (req, res) => {
     res.status(500).json({ error: "Errore nel recupero partite" });
   }
 });
+
+// GET /matches/upcoming → restituisce tutte le partite future non concluse
+app.get("/matches/upcoming", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT * FROM matches WHERE finished = false AND date > NOW() ORDER BY date ASC"
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Errore nel recupero partite future" });
+  }
+});
