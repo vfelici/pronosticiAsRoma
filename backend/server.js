@@ -263,3 +263,38 @@ app.get("/matches/upcoming", async (req, res) => {
     res.status(500).json({ error: "Errore nel recupero partite future" });
   }
 });
+
+// GET /predictions/:match_id
+app.get("/predictions/:match_id", async (req, res) => {
+  const userId = req.user?.id; // se usi autenticazione JWT con req.user
+  const { match_id } = req.params;
+
+  try {
+    // recupera la partita
+    const matchRes = await pool.query("SELECT * FROM matches WHERE id = $1", [match_id]);
+    const match = matchRes.rows[0];
+    if (!match) return res.status(404).json({ error: "Partita non trovata" });
+
+    // recupera i pronostici
+    const predictionsRes = await pool.query(
+      `SELECT p.*, u.username 
+       FROM predictions p
+       JOIN users u ON u.id = p.user_id
+       WHERE p.match_id = $1`,
+      [match_id]
+    );
+    const predictions = predictionsRes.rows;
+
+    if (!match.finished) {
+      // partita NON finita → restituisco SOLO il pronostico dell’utente corrente
+      const myPrediction = predictions.find(p => p.user_id === userId);
+      return res.json({ match, predictions: myPrediction ? [myPrediction] : [] });
+    } else {
+      // partita finita → restituisco TUTTI i pronostici
+      return res.json({ match, predictions });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Errore recupero pronostici" });
+  }
+});
