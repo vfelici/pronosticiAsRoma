@@ -278,9 +278,10 @@ app.get("/predictions/:match_id", auth, async (req, res) => {
 
     // recupera i pronostici
     const predictionsRes = await pool.query(
-      `SELECT p.*, u.username 
-       FROM predictions p
-       JOIN users u ON u.id = p.user_id
+      `SELECT u.username, p.*, s.name as scorer
+            FROM predictions p
+            JOIN users u ON p.user_id = u.id
+            JOIN scorers s ON p.scorer_id = s.id
        WHERE p.match_id = $1`,
       [match_id]
     );
