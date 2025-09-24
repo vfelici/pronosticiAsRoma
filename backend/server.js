@@ -146,7 +146,7 @@ app.get('/leaderboard', async (req, res) => {
       SELECT 
         u.id as user_id,
         u.username,
-        SUM(
+        SUM(DISTINCT
           CASE 
             WHEN p.home_score = m.home_score AND p.away_score = m.away_score AND m.finished
               THEN 5 ELSE 0 
